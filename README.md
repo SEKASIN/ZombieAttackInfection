@@ -2,12 +2,13 @@
 EXILED plugin that causes SCP-049-2 to spread a disease.
 
 ## Installation
-Download ZombieAttackInfection.dll from [Releases](/Releases).\
+Download ZombieAttackInfection.dll from [Releases](/Releases).
 
 Move ZombieAttackInfection.dll to .config/EXILED/Plugins and restart server.
 
 ## Configuration
-Edit values in .config/EXILED/Configs/PORT-config.yml\
+Edit values in .config/EXILED/Configs/PORT-config.yml
+
 Example config with default values:
 ```
 zombie_attack_infection:
