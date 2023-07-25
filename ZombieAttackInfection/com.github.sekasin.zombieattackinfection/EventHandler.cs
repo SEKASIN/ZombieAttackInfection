@@ -72,11 +72,6 @@ public class EventHandler {
             player.Hurt(TickDamage, DamageType.Poison);
             infectionDamage[player.UserId] += TickDamage;
 
-            if (_debugMode)
-            {
-                Log.Info(infectionDamage[player.UserId]);
-            }
-
             if (infectionDamage[player.UserId] >= InfectionTotalDamage)
             {
                 infectedPlayers.Remove(player);
