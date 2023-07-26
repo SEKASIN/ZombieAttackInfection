@@ -192,8 +192,6 @@ public EventHandler(Plugin<Config> plugin)
     private void StartInfectionMainLoop() {
         infectedPlayers.Clear();
         infectionDamage.Clear();
-        Player teni = Player.Get("76561198100681403@steam");
-        Infect(teni);
         timer = Timing.RunCoroutine(EventLoop());
     }
 
