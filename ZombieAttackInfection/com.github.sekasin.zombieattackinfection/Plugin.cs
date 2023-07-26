@@ -18,7 +18,7 @@ namespace ZombieAttackInfection.com.github.sekasin.zombieattackinfection
                 return;
             }
             eventHandler = new EventHandler(this);
-            Log.Info("ZombieAttackInfection loaded.");
+            Log.Info("ZombieAttackInfection loaded...");
         }
 
         public override void OnDisabled()

@@ -5,6 +5,7 @@ using Handlers = Exiled.Events.Handlers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Timers;
+using CommandSystem.Commands.RemoteAdmin.Tickets;
 using MEC;
 using Random = System.Random;
 using Exiled.Events.EventArgs.Player;
@@ -65,19 +66,29 @@ public class EventHandler {
     }
     private void EventLoop(object sender, ElapsedEventArgs e) {
         foreach (Player player in infectedPlayers) {
-            if (player.Role.Team == Team.SCPs || ImmuneRoles.Contains(player.Role)) {
-                infectedPlayers.Remove(player);
-                infectionDamage.Remove(player.UserId);
+            if (!player.IsAlive || player.Role.Team == Team.SCPs || ImmuneRoles.Contains(player.Role)) {
+                removeFromInfected(player);
+                break;
             }
-            player.Hurt(TickDamage, DamageType.Poison);
             infectionDamage[player.UserId] += TickDamage;
-
+            //This is disabled due to the thing not fucking working on the server.
+            //Can be re-enabled once it works.
+            //player.Hurt(TickDamage, DamageType.Poison);
+            if (_debugMode)
+            {
+                Log.Info("Tickings " + infectionDamage[player.UserId]);
+            }
             if (infectionDamage[player.UserId] >= InfectionTotalDamage)
             {
-                infectedPlayers.Remove(player);
-                infectionDamage.Remove(player.UserId);
+                removeFromInfected(player);
             }
         }
+    }
+
+    private void removeFromInfected(Player player)
+    {
+        if (infectedPlayers.Contains(player)) infectedPlayers.Remove(player);
+        if (infectionDamage.ContainsKey(player.UserId)) infectionDamage.Remove(player.UserId);
     }
 
     private void Hurting(HurtingEventArgs args) {
@@ -128,10 +139,7 @@ public class EventHandler {
         if (_debugMode) {
             Log.Info(player.Nickname+" has cured the infection.");
         }
-        if (infectedPlayers.Contains(player)) {
-            infectedPlayers.Remove(player);
-            infectionDamage.Remove(player.UserId);
-        }
+        removeFromInfected(player);
     }
 
     private void Infect(Player player) {
@@ -145,6 +153,7 @@ public class EventHandler {
     private void DieWithInfection(DyingEventArgs args) {
         if (infectedPlayers.Contains(args.Player))
         {
+            args.IsAllowed = false;
             if (_debugMode) {
                 Log.Info(args.Player.Nickname+" is being turned into SCP-049-2");
             }
@@ -172,19 +181,10 @@ public class EventHandler {
             if (position == null) {
                 return;
             }
-            Timing.CallDelayed(1f, () =>
-            {
-                args.Player.RoleManager.ServerSetRole(RoleTypeId.Scp0492, RoleChangeReason.Revived);
-                args.Player.Teleport(position);
-                infectedPlayers.Remove(args.Player);
-                infectionDamage.Remove(args.Player.UserId);
-            });
-            Timing.CallDelayed(2f, () =>
-            {
-                if (Ragdoll.GetLast(args.Player) != null) {
-                    Ragdoll.GetLast(args.Player).Destroy();
-                }
-            });
+
+            args.Player.RoleManager.ServerSetRole(RoleTypeId.Scp0492, RoleChangeReason.Revived);
+            args.Player.Teleport(args.Player.Position);
+            removeFromInfected(args.Player);
         }
     }
 
