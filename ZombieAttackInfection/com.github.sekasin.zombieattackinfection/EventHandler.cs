@@ -181,7 +181,9 @@ public class EventHandler {
             });
             Timing.CallDelayed(2f, () =>
             {
-                Ragdoll.GetLast(args.Player).Destroy();
+                if (Ragdoll.GetLast(args.Player) != null) {
+                    Ragdoll.GetLast(args.Player).Destroy();
+                }
             });
         }
     }
