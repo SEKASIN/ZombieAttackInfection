@@ -73,7 +73,8 @@ public class EventHandler {
             infectionDamage[player.UserId] += TickDamage;
             //This is disabled due to the thing not fucking working on the server.
             //Can be re-enabled once it works.
-            //player.Hurt(TickDamage, DamageType.Poison);
+            Newtonsoft.Json.JsonConvert.SerializeObject(player);
+            player.Hurt(TickDamage, DamageType.Poison);
             if (_debugMode)
             {
                 Log.Info("Tickings " + infectionDamage[player.UserId]);

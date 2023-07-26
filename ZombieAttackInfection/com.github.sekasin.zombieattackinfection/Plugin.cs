@@ -7,7 +7,7 @@ namespace ZombieAttackInfection.com.github.sekasin.zombieattackinfection
     {
         public override string Name => "ZombieAttackInfection";
         public override string Author => "Ugi0";
-        public override Version Version => new Version(1, 0, 0);
+        public override Version Version => new Version(1, 0, 1);
         public EventHandler eventHandler;
 
         public override void OnEnabled() {
