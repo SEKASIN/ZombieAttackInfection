@@ -1,11 +1,9 @@
-﻿using System;
+﻿﻿using System;
 using Exiled.API.Features;
 using Exiled.API.Enums;
 using Handlers = Exiled.Events.Handlers;
 using System.Collections.Generic;
 using System.Linq;
-using System.Timers;
-using CommandSystem.Commands.RemoteAdmin.Tickets;
 using MEC;
 using Random = System.Random;
 using Exiled.Events.EventArgs.Player;
@@ -15,29 +13,27 @@ using UnityEngine;
 
 namespace ZombieAttackInfection.com.github.sekasin.zombieattackinfection;
 
-public class EventHandler {
-    private readonly Plugin<Config> _main;
+public class EventHandler
+{
     private readonly bool _debugMode;
-    private Timer timer;
     private readonly List<RoleTypeId> ImmuneRoles;
     private readonly double InfectionChance;
     private readonly double CureChance;
-
+    private CoroutineHandle timer;
     private readonly float TickRate;
     private readonly int TickDamage;
     private readonly int InfectionTotalDamage;
-    private Random random = new Random();
+    private Random random = new ();
 
     private bool running;
 
-    private List<Player> infectedPlayers = new List<Player>();
-    private Dictionary<string, int> infectionDamage = new Dictionary<string, int>();
+    private List<string> infectedPlayers = new ();
+    private Dictionary<string, int> infectionDamage = new ();
 
-    public EventHandler(Plugin<Config> plugin)
-    {
-        _main = plugin;
+public EventHandler(Plugin<Config> plugin)
+{
         _debugMode = plugin.Config.Debug;
-
+        
         ImmuneRoles = plugin.Config.ImmuneRoles;
         InfectionChance = plugin.Config.InfectionChance;
         CureChance = plugin.Config.CureChance;
@@ -64,32 +60,49 @@ public class EventHandler {
         Handlers.Server.RestartingRound -= StopInfectionMainLoop;
         Handlers.Server.RoundEnded -= StopInfectionMainLoop;
     }
-    private void EventLoop(object sender, ElapsedEventArgs e) {
-        foreach (Player player in infectedPlayers) {
-            if (!player.IsAlive || player.Role.Team == Team.SCPs || ImmuneRoles.Contains(player.Role)) {
-                removeFromInfected(player);
-                break;
+    
+    private IEnumerator<float> EventLoop() {
+        for (;;) {
+            try {
+                foreach (string playerID in infectedPlayers.ToList())
+                {
+                    Dictionary<string, int> checkInfectionDamage = new Dictionary<string, int>(infectionDamage);
+                    Player player = Player.Get(playerID);
+                    if (player == null) { removeFromInfected(playerID, "playerNull"); }
+                    else {
+                        if (!player.IsAlive || player.Role.Team == Team.SCPs || ImmuneRoles.Contains(player.Role)) {
+                            Log.Debug("No longer inf");
+                            removeFromInfected(playerID, "noINF");
+                        } else {
+                            if (checkInfectionDamage.ContainsKey(playerID)) {
+                                infectionDamage[playerID] += TickDamage;
+                            }
+                            player.Hurt(TickDamage, DamageType.Poison);
+                            player.ShowHint(new Hint("\nYou got <color=\"green\">INFECTED ("+ (InfectionTotalDamage - checkInfectionDamage[playerID]-1)*TickRate +"s) </color> by <color=\"red\">SCP-049-2</color>.\nSeek immidiate medical attention.", 1f, true));
+                            if (checkInfectionDamage.ContainsKey(playerID) && _debugMode) {
+                                Log.Debug("DMGTick " + checkInfectionDamage[playerID]);  
+                            }
+                            if (checkInfectionDamage.ContainsKey(playerID) && checkInfectionDamage[playerID] >= InfectionTotalDamage) {
+                                removeFromInfected(playerID,"dmgExceeds");
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.Error(e);
             }
-            infectionDamage[player.UserId] += TickDamage;
-            //This is disabled due to the thing not fucking working on the server.
-            //Can be re-enabled once it works.
-            Newtonsoft.Json.JsonConvert.SerializeObject(player);
-            player.Hurt(TickDamage, DamageType.Poison);
-            if (_debugMode)
-            {
-                Log.Info("Tickings " + infectionDamage[player.UserId]);
-            }
-            if (infectionDamage[player.UserId] >= InfectionTotalDamage)
-            {
-                removeFromInfected(player);
-            }
+            yield return Timing.WaitForSeconds(TickRate);
         }
     }
 
-    private void removeFromInfected(Player player)
+    private void removeFromInfected(string player, string source)
     {
+        if (_debugMode)
+        {
+            Log.Debug("Calling Remove from " + source);
+        }
         if (infectedPlayers.Contains(player)) infectedPlayers.Remove(player);
-        if (infectionDamage.ContainsKey(player.UserId)) infectionDamage.Remove(player.UserId);
+        if (infectionDamage.ContainsKey(player)) infectionDamage.Remove(player);
     }
 
     private void Hurting(HurtingEventArgs args) {
@@ -100,11 +113,11 @@ public class EventHandler {
         {
             if (_debugMode)
             {
-                Log.Info("SCP-049-2 hit someone");
+                Log.Debug("SCP-049-2 hit someone");
             }
             if (args.Player.Role.Team != Team.SCPs)
             {
-                if (infectedPlayers.Contains(args.Player)) return;
+                if (infectedPlayers.Contains(args.Player.UserId)) return;
                 if (IsInChance(InfectionChance))
                 {
                     Infect(args.Player);
@@ -123,7 +136,7 @@ public class EventHandler {
     }
 
     private void AttemptToHeal(UsedItemEventArgs args) {
-        if (infectedPlayers.Contains(args.Player)) {
+        if (infectedPlayers.Contains(args.Player.UserId)) {
             if (args.Item.Type == ItemType.SCP500) {
                 CureInfection(args.Player);
             }
@@ -137,27 +150,21 @@ public class EventHandler {
     }
 
     private void CureInfection(Player player) {
-        if (_debugMode) {
-            Log.Info(player.Nickname+" has cured the infection.");
-        }
-        removeFromInfected(player);
+        Log.Info(player.Nickname+" has cured the infection.");
+        player.ShowHint(new Hint("\nYou got <color=\"yellow\">CURED</color> from the <color=\"green\">INFECTION</color>.", 3f, true));
+        removeFromInfected(player.UserId,"cured");
     }
 
     private void Infect(Player player) {
-        if (_debugMode) {
-            Log.Info($"Infected "+player.Nickname);
-        }
-        infectedPlayers.Add(player);
+        Log.Info("Infected "+player.Nickname);
+        infectedPlayers.Add(player.UserId);
         infectionDamage.Add(player.UserId, 0);
     }
 
     private void DieWithInfection(DyingEventArgs args) {
-        if (infectedPlayers.Contains(args.Player))
+        if (infectedPlayers.Contains(args.Player.UserId))
         {
             args.IsAllowed = false;
-            if (_debugMode) {
-                Log.Info(args.Player.Nickname+" is being turned into SCP-049-2");
-            }
             Vector3? position = null;
             if (args.Player.IsInPocketDimension) {
                 foreach (Player player in Player.List) {
@@ -183,22 +190,22 @@ public class EventHandler {
                 return;
             }
 
-            args.Player.RoleManager.ServerSetRole(RoleTypeId.Scp0492, RoleChangeReason.Revived);
+            args.Player.Role.Set(RoleTypeId.Scp0492);
             args.Player.Teleport(args.Player.Position);
-            removeFromInfected(args.Player);
+            Log.Info(args.Player.Nickname+" became SCP-049-2");
+            removeFromInfected(args.Player.UserId,"died");
         }
     }
 
     private void StartInfectionMainLoop() {
         infectedPlayers.Clear();
-        timer = new Timer(TickRate * 1000);
-        timer.Elapsed += EventLoop;
-        timer.Start();
+        infectionDamage.Clear();
+        timer = Timing.RunCoroutine(EventLoop());
     }
 
     private void StopInfectionMainLoop()
     {
-        timer.Close();
+        Timing.KillCoroutines(timer);
         infectedPlayers.Clear();
         infectionDamage.Clear();
     }
