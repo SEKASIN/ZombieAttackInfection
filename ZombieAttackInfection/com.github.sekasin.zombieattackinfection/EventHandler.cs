@@ -1,15 +1,17 @@
-﻿﻿using System;
+﻿using System;
 using Exiled.API.Features;
-using Exiled.API.Enums;
 using Handlers = Exiled.Events.Handlers;
 using System.Collections.Generic;
 using System.Linq;
+using Exiled.API.Features.Roles;
 using MEC;
 using Random = System.Random;
 using Exiled.Events.EventArgs.Player;
 using Exiled.Events.EventArgs.Server;
 using PlayerRoles;
+using PluginAPI.Enums;
 using UnityEngine;
+using DamageType = Exiled.API.Enums.DamageType;
 
 namespace ZombieAttackInfection.com.github.sekasin.zombieattackinfection;
 
@@ -70,7 +72,7 @@ public EventHandler(Plugin<Config> plugin)
                     Player player = Player.Get(playerID);
                     if (player == null) { removeFromInfected(playerID, "playerNull"); }
                     else {
-                        if (!player.IsAlive || player.Role.Team == Team.SCPs || ImmuneRoles.Contains(player.Role)) {
+                        if (!player.IsAlive || player.IsScp || ImmuneRoles.Contains(player.Role)) {
                             Log.Debug("No longer inf");
                             removeFromInfected(playerID, "noINF");
                         } else {
@@ -115,7 +117,7 @@ public EventHandler(Plugin<Config> plugin)
             {
                 Log.Debug("SCP-049-2 hit someone");
             }
-            if (args.Player.Role.Team != Team.SCPs)
+            if (!args.Player.IsScp)
             {
                 if (infectedPlayers.Contains(args.Player.UserId)) return;
                 if (IsInChance(InfectionChance))
@@ -168,7 +170,7 @@ public EventHandler(Plugin<Config> plugin)
             Vector3? position = null;
             if (args.Player.IsInPocketDimension) {
                 foreach (Player player in Player.List) {
-                    if (player.Role == RoleTypeId.Scp049) {
+                    if (player.Role == RoleTypeId.Scp0492) {
                         position = player.Position;
                         break;
                     }
@@ -189,7 +191,6 @@ public EventHandler(Plugin<Config> plugin)
             if (position == null) {
                 return;
             }
-
             args.Player.Role.Set(RoleTypeId.Scp0492);
             args.Player.Teleport(args.Player.Position);
             Log.Info(args.Player.Nickname+" became SCP-049-2");
